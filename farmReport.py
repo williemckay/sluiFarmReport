@@ -105,11 +105,75 @@ arcpy.management.CalculateField(
     "NO_ENFORCE_DOMAINS"
     )
 
+
 arcpy.management.Dissolve(
     "SLUIlucExported", 
-    r"\\gisdata\gis\Department\Environmental_Management\SLUI\ArcPro_Projects\FarmWorksReports\FarmWorksReports.gdb\SLUIlucExported_Dissolve", 
+    os.path.join(gdb, "SLUIlucExported_Dissolve"), 
     "HEL_Class;Cover", 
     "Hectares SUM", 
     "MULTI_PART", 
     "DISSOLVE_LINES"
     )
+
+arcpy.management.Dissolve(
+    "SLUIWorkPolysExported", 
+    os.path.join(gdb, "SLUIWorkPolysExported_Dissolve"), 
+    "job_type", 
+    [["Hectares", "SUM"], ["num_plant", "SUM"]],
+    "MULTI_PART", 
+    "DISSOLVE_LINES"
+    )
+
+arcpy.management.Dissolve(
+    "SLUIWorkLinesExported", 
+    os.path.join(gdb, "SLUIWorkLinesExported_Dissolve"), 
+    "job_type", 
+    "Perimeter SUM", 
+    "MULTI_PART", 
+    "DISSOLVE_LINES"
+    )
+
+#reclassify jobtypes
+arcpy.management.AddField(
+    "SLUIWorkPolysExported",
+    "jobtype_reclass",
+    "TEXT",
+    field_length=50
+)
+
+arcpy.management.AddField(
+    "SLUIWorkLinesExported",
+    "jobtype_reclass",
+    "TEXT",
+    field_length=50
+)
+
+reclass = {
+    1: "Afforestation",
+    2: "Retirement",
+    3: "Riparian Retirement",
+    4: "Wetland Retirement",
+    5: "Managed Retirement",
+    6: "Pole Planting",
+    7: "Pole Planting",
+    8: "Structures/Earthworks",
+    9: "Other"
+}
+
+with arcpy.da.UpdateCursor(
+    "SLUIWorkLinesExported",
+    ["jobtype", "jobtype_reclass"]
+) as cursor:
+
+    for row in cursor:
+        row[1] = reclass.get(row[0], row[0])
+        cursor.updateRow(row)
+
+with arcpy.da.UpdateCursor(
+    "SLUIWorkPolysExported",
+    ["jobtype", "jobtype_reclass"]
+) as cursor:
+
+    for row in cursor:
+        row[1] = reclass.get(row[0], row[0])
+        cursor.updateRow(row)
