@@ -179,3 +179,32 @@ arcpy.management.CalculateField(
     "PYTHON3",
     codeblock
 )
+
+
+codeblockLUC = """
+def reclassPriority(HEL_Class):
+    values = {
+        "0": "Not Erodible",
+        "1": "Erodible",
+        "2": "High Priority",
+        "3": "Top Priority"
+    }
+    return values.get(HEL_Class, str(HEL_Class))
+"""
+
+arcpy.management.CalculateField(
+    "SLUIlucExported_Dissolve",
+    "Land Priority",
+    "reclassPriority(!HEL_Class!)",
+    "PYTHON3",
+    codeblockLUC
+)
+
+
+arcpy.analysis.Union(
+    r"SLUIlucExported_Dissolve #;SLUIWorkPolysExported_Dissolve #",
+    os.path.join(gdb, "LUC_Union_WorkPolys"),
+    "ALL",
+    None,
+    "Gaps"
+)
