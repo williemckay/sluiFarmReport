@@ -6,7 +6,7 @@ import pyodbc
 import numpy as np
 import datetime
 
-gdb = r"\\gisdata\gis\Department\Environmental_Management\SLUI\ArcPro_Projects\FarmWorksReports\FarmWorksReports.gdb"
+gdb = r"\\gisdata\gis\Department\Environmental_Management\SLUI\ArcPro_Projects\FarmWorksReports\FarmWorksReports_31.gdb"
 
 #Set the arcpy EnvironmentSettings
 arcpy.env.overwriteOutput=True
@@ -135,45 +135,47 @@ arcpy.management.Dissolve(
 
 #reclassify jobtypes
 arcpy.management.AddField(
-    "SLUIWorkPolysExported",
+    "SLUIWorkPolysExported_Dissolve",
     "jobtype_reclass",
     "TEXT",
     field_length=50
 )
 
 arcpy.management.AddField(
-    "SLUIWorkLinesExported",
+    "SLUIWorkLinesExported_Dissolve",
     "jobtype_reclass",
     "TEXT",
     field_length=50
 )
 
-reclass = {
-    1: "Afforestation",
-    2: "Retirement",
-    3: "Riparian Retirement",
-    4: "Wetland Retirement",
-    5: "Managed Retirement",
-    6: "Pole Planting",
-    7: "Pole Planting",
-    8: "Structures/Earthworks",
-    9: "Other"
-}
+codeblock = """
+def reclass(job_type):
+    values = {
+        1: "Afforestation",
+        2: "Retirement",
+        3: "Riparian Retirement",
+        4: "Wetland Retirement",
+        5: "Managed Retirement",
+        6: "Pole Planting",
+        7: "Pole Planting",
+        8: "Structures/Earthworks",
+        9: "Other"
+    }
+    return values.get(job_type, str(job_type))
+"""
 
-with arcpy.da.UpdateCursor(
-    "SLUIWorkLinesExported",
-    ["jobtype", "jobtype_reclass"]
-) as cursor:
+arcpy.management.CalculateField(
+    "SLUIWorkLinesExported_Dissolve",
+    "jobtype_reclass",
+    "reclass(!job_type!)",
+    "PYTHON3",
+    codeblock
+)
 
-    for row in cursor:
-        row[1] = reclass.get(row[0], row[0])
-        cursor.updateRow(row)
-
-with arcpy.da.UpdateCursor(
-    "SLUIWorkPolysExported",
-    ["jobtype", "jobtype_reclass"]
-) as cursor:
-
-    for row in cursor:
-        row[1] = reclass.get(row[0], row[0])
-        cursor.updateRow(row)
+arcpy.management.CalculateField(
+    "SLUIWorkPolysExported_Dissolve",
+    "jobtype_reclass",
+    "reclass(!job_type!)",
+    "PYTHON3",
+    codeblock
+)
