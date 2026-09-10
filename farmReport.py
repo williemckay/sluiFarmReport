@@ -208,3 +208,85 @@ arcpy.analysis.Union(
     None,
     "Gaps"
 )
+
+#Calculate Hectares
+arcpy.AddField_management(
+    'LUC_Union_WorkPolys', 
+    'int_ha', 
+    'DOUBLE', 
+    '#', '#', '#', '#', 
+    'NULLABLE', 
+    'NON_REQUIRED', 
+    '#'
+    )
+
+arcpy.CalculateField_management(
+    'LUC_Union_WorkPolys', 
+    'int_ha', 
+    '!shape.area@hectares!', 
+    'PYTHON3', 
+    '#'
+    )
+
+arcpy.management.CalculateField(
+    "LUC_Union_WorkPolys",
+    "jobtype_reclass",
+    "'Works' if !job_type! > 0 else 'No Works'",
+    "PYTHON3"
+)
+
+
+arcpy.management.Dissolve(
+    "LUC_Union_WorkPolys", 
+    os.path.join(gdb, "LUC_Union_Works_Dissolve"), 
+    "Land_Priority;Cover;jobtype_reclass", 
+    "int_ha SUM", 
+    "MULTI_PART", 
+    "DISSOLVE_LINES"
+    )
+
+from collections import defaultdict
+
+fc = "SLUIlucExported_Dissolve"
+
+# Add percentage field
+arcpy.management.AddField(
+    fc,
+    "Percent_Works",
+    "DOUBLE"
+)
+
+# Get total Works and No Works hectares
+summary = defaultdict(lambda: {"Works": 0, "No Works": 0})
+
+with arcpy.da.SearchCursor(
+    fc,
+    ["Cover", "Land_Priority", "jobtype_reclass", "SUM_int_ha"]
+) as cursor:
+
+    for cover, priority, works_class, hectares in cursor:
+        summary[(cover, priority)][works_class] += hectares or 0
+
+
+# Calculate percentage for each Cover / Priority combination
+percentages = {}
+
+for key, values in summary.items():
+
+    total = values["Works"] + values["No Works"]
+
+    percentages[key] = (
+        values["Works"] / total * 100
+        if total > 0 else 0
+    )
+
+
+# Write percentage back to feature class
+with arcpy.da.UpdateCursor(
+    fc,
+    ["Cover", "Land_Priority", "Percent_Works"]
+) as cursor:
+
+    for row in cursor:
+        row[2] = percentages[(row[0], row[1])]
+        cursor.updateRow(row)
